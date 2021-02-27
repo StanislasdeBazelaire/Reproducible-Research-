@@ -1,0 +1,176 @@
+---
+title: "Reproducible research_project 1"
+author: "Stanislas de Bazelaire"
+date: "1/24/2021"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+# Introduction
+It is now possible to collect a large amount of data about personal movement using activity monitoring devices such as a Fitbit, Nike Fuelband, or Jawbone Up. These type of devices are part of the **“quantified self”** movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. But these data remain under-utilized both because the raw data are hard to obtain and there is a lack of statistical methods and software for processing and interpreting the data.
+
+This assignment makes use of data from a personal activity monitoring device. This device collects data at 5 minute intervals through out the day. The data consists of **two months of data from an anonymous individual collected during the months of October and November**, 2012 and include the number of steps taken in 5 minute intervals each day.
+
+So let's get started!
+
+# Reading and processing the data set
+
+## Reading the data 
+
+- Let's set the working directory and use the "downloader" package to load the data:
+
+```{r load, echo = TRUE, results = "hide"}
+setwd("C:/Users/stanislas_bazelaire/Box/Stanislas_Bazelaire/Data science/Reproducible research")
+library(downloader)
+download("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip", dest="zipped.zip", mode="wb") 
+unzip ("zipped.zip",exdir = "./unzipped")
+activity<-read.csv("./unzipped/activity.csv",header=TRUE,sep=",")
+```
+
+## Formatting the data
+
+- Let's check the format of the date column:
+```{r,echo=TRUE}
+class(activity$date)
+```
+
+- Let's convert it to a date format:
+```{r message=FALSE, warning=FALSE, results="hide"}
+library(lubridate)
+activity$date<-ymd(activity$date)
+```
+
+- Let's check whether this is now the case:
+```{r,echo=TRUE}
+class(activity$date)
+```
+
+- Let's now add two columns: one named "weekday" indicating the name of the weekday, and another one named "type" indicating whether this is the week or the weekend:
+```{r,echo=TRUE}
+activity$weekday<-weekdays(activity$date)
+activity$type <- with(activity, ifelse(activity$weekday=="Saturday"|activity$weekday=="Sunday","weekend","week"))
+```
+
+- This is how the data looks like now:
+```{r,echo=TRUE}
+head(activity)
+```
+
+## Missing values
+
+Oups, there are missing values! How many? 
+
+- Let's compute the proportion of missing values:
+
+```{r missing,echo=TRUE}
+incomplete<-sum(!complete.cases(activity$steps))
+complete<-sum(complete.cases(activity$steps))
+missingper<-incomplete/(incomplete+complete)*100
+print(missingper)
+```
+
+So, for **`r missingper`%** of the 5 min periods we do not have the number of steps!
+
+- Let's assign a value of zero when the value is missing:
+
+```{r,echo=TRUE}
+activity$steps[is.na(activity$steps)]<-0
+```
+
+- Let's have a look at the data by plotting the histogram of the total number of steps made:
+
+1. Let's compute the total number of steps made each day:
+```{r,echo=TRUE}
+aggsum<-aggregate(activity$steps ~ activity$date, data=activity, sum)
+names(aggsum)<-c("date","steps")
+```
+
+2. Let's plot the corresponding histogram:
+```{r,echo=TRUE, fig.height=8, fig.width=8}
+hist(aggsum$steps,col="green",main="Distribution of total steps per day (v1)",breaks=20,xlab="Number of steps")
+```
+
+- Now, let's implement a different approach to missing values whereby we replace them with the average number of steps observed on that specific 5 min interval. We proceed in two steps:
+
+1. We compute the average number of steps per 5 min interval:
+```{r,echo=TRUE}
+aggint<-aggregate(activity$steps ~ activity$interval, data=activity, mean)
+names(aggint)<-c("interval","avsteps")
+```
+
+2. We use the result above to fill missing values:
+```{r,echo=TRUE}
+activity<-read.csv("./unzipped/activity.csv",header=TRUE,sep=",")
+activity$date<-ymd(activity$date)
+activity$weekday<-weekdays(activity$date)
+activity$type <- with(activity, ifelse(activity$weekday=="Saturday"|activity$weekday=="Sunday","weekend","week"))
+N<-nrow(activity)
+for (i in 1:N) {
+  if (is.na(activity$steps[i])) {activity$steps[i]<- aggint$avsteps[aggint$interval==activity$interval[i]]
+      }
+}  
+```
+
+- Let's have a look at our new dataset:
+```{r,echo=TRUE}
+head(activity)
+```
+
+- Let's see the histogram based on this new dataset:
+```{r,echo=TRUE, fig.height=6, fig.width=6}
+aggsum<-aggregate(activity$steps ~ activity$date, data=activity, sum)
+names(aggsum)<-c("date","steps")
+hist(aggsum$steps,col="green",main="Distribution of total steps per day (v2)",breaks=20,xlab="Number of steps")
+```
+
+**The distribution of the total number of steps per day is now smoother!**
+
+# Data analysis
+
+Now that the data is clean, let's extract a few results:
+
+- Let's compute the **average number of steps per day**:
+```{r showtable,echo=TRUE}
+t1<-aggregate(activity$steps ~ activity$weekday, data=activity, mean)
+names(t1)<-c("weekday","mean")
+t1$weekday<-factor(t1$weekday,levels=c("Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"))
+t1<-t1[order(t1$weekday),]
+print(t1)
+```
+
+- Let's compute the **median number of steps per day**:
+```{r,echo=TRUE}
+t2<-aggregate(activity$steps ~ activity$weekday, data=activity, median)
+names(t2)<-c("weekday","median")
+t2$weekday<-factor(t2$weekday,levels=c("Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"))
+t2<-t2[order(t2$weekday),]
+print(t2)
+```
+
+- Let's plot the **average number of steps made over the period per 5 min interval**:
+```{r,echo=TRUE, fig.height=6, fig.width=6}
+aggmean<-aggregate(activity$steps ~ activity$date, data=activity, mean)
+names(aggmean)<-c("date","meansteps")
+plot(x=aggmean$date,y=aggmean$meansteps,type="l",xlab="Date",ylab="Average",main = "Average number of steps per 5 min interval")
+```
+
+- The **5-minute interval that, on average, contains the maximum number of steps**
+```{r,echo=TRUE}
+aggint<-aggregate(activity$steps ~ activity$interval, data=activity, mean)
+names(aggint)<-c("interval","avsteps")
+time<-aggint$interval[aggint$avsteps==max(aggint$avsteps)]
+time<-time*1/100
+print(time)
+```
+i.e. at `r time`: wake-up!
+
+- Let's make a panel plot comparing the **average number of steps taken per 5-minute interval across weekdays and weekends**:
+```{r fig.height=6, fig.width=6, message=TRUE, warning=FALSE}
+aggday<-aggregate(activity$steps ~ activity$interval + activity$type,data=activity, mean)
+names(aggday)<-c("interval","type","steps")
+library(ggplot2)
+plot<-ggplot(aggday,aes(x=aggday$interval,y=aggday$steps))+facet_grid(.~aggday$type)+geom_line()+labs(x="Time",y="Average nb. steps / 5 min")
+print(plot)
+```
+

@@ -1,0 +1,149 @@
+---
+title: "Reproducible Research - Project2"
+author: "Stanislas de Bazelaire"
+date: "2/21/2021"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+# Introduction
+
+This project involves exploring the U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database. This database tracks characteristics of **major storms and weather events in the United States**, including when and where they occur, as well as estimates of any fatalities, injuries, and property damage.
+
+We focus on two types of storms damage: 
+
+1. **Human**, by looking at injuries and deaths;
+
+2. **Economic**, by looking at damage to properties and crops.
+
+Our goal is to identify the most damaging types of storms in the US. We narrow the list of most damaging storms to the **top five**.
+
+# I. Data processing
+
+## A. Loading the data
+
+Let's start by loading the data and caching this step to avoid having to reload the data each time we run the script:
+```{r, echo=TRUE,results='hide',cache=TRUE}
+setwd("C:/Users/stanislas_bazelaire/Box/Stanislas_Bazelaire/Data science/Reproducible research")
+dir.create("Stormdata")
+library(downloader)
+download("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2","./Stormdata/stormdata.csv.bz2",mode="wb") 
+data<-read.csv("./Stormdata/stormdata.csv.bz2",header=TRUE,sep=",")
+```
+
+## B. Injuries
+Let's compute the sum of injuries by storm event type with the aggregate function and then:
+
+-keep events only for which the number of injured is greater than zero
+
+-order the events by number of injuries
+
+-keep only the top 5 events
+
+```{r, echo=TRUE,results='hide'}
+injuries<-aggregate(data$INJURIES~data$EVTYPE,data=data,sum)
+names(injuries)<-c("event","injured")
+injuries<-injuries[injuries$injured>0,]
+injuries<-injuries[order(-injuries$injured),]
+top5injuries<-injuries[1:5,]
+```
+
+## C. Deaths
+Let's proceed exactly in the same way for the number of deaths:
+```{r, echo=TRUE,results='hide'}
+fat<-aggregate(data$FATALITIES~data$EVTYPE,data=data,sum)
+names(fat)<-c("event","deaths")
+fat<-fat[fat$deaths>0,]
+fat<-fat[order(-fat$deaths),]
+top5fat<-fat[1:5,]
+```
+
+## D. The issue of units for economic damage
+
+Units are indicated in two colmuns: **PROPDMGEXP** and **CROPDMGEXP**.
+
+Let's map the symbols of these two columns as per the table below. To do this we create a vector ('unit') which contains all the different units and a vector ('v') which contains all the values we want to assign to the different units:
+
+```{r, echo=TRUE}
+allunits<-data.frame(c(data$PROPDMGEXP,data$CROPDMGEXP))
+units<-unique(allunits)
+v<-c(10^3,10^6,1,10^9,10^6,1,1,10^5,10^6,1,10^4,10^2,10^3,10^2,10^7,10^2,1,1,10^8,10^3)
+values<-data.frame(units,v)
+names(values)<-c("UNIT","VALUE")
+print(values)
+```
+
+## E. Property damage
+
+We proceed as follows:
+
+1. We create a dataframe with three columns: the storm type, the damage, the unit
+
+2. We merge the dataframe with the units dataframe above
+
+3. We compute the amount of the damage by adding a new column equal to the damage times the unit
+
+4. We compute total damages per type of storm event (aggregate function) and (as before) narrow the results to the top 5
+
+```{r, echo=TRUE}
+prop<-data.frame(data$EVTYPE,data$PROPDMG,data$PROPDMGEXP)
+names(prop)<-c("EVTYPE","PROPDMG","UNIT")
+prop2<-merge(prop,values,by.x = "UNIT",by.y = "UNIT",all.x = TRUE, all.y = FALSE )
+prop2$DMG<-prop2$PROPDMG*prop2$VALUE
+propdmg<-aggregate(prop2$DMG~prop2$EVTYPE,data=prop2,sum)
+names(propdmg)<-c("EVTYPE","DMG")
+propdmg<-propdmg[order(-propdmg$DMG),]
+propdmg<-propdmg[1:5,]
+propdmg$DMG<-propdmg$DMG/10^9
+propdmg$DMG<-round(propdmg$DMG,digits = 1)
+```
+
+## F. Crops damage
+
+We do exactly the same as for property damages
+
+```{r, echo=TRUE}
+crop<-data.frame(data$EVTYPE,data$CROPDMG,data$CROPDMGEXP)
+names(crop)<-c("EVTYPE","CROPDMG","UNIT")
+crop2<-merge(crop,values,by.x = "UNIT",by.y = "UNIT",all.x = TRUE, all.y = FALSE )
+crop2$DMG<-crop2$CROPDMG*prop2$VALUE
+cropdmg<-aggregate(crop2$DMG~crop2$EVTYPE,data=crop2,sum)
+names(cropdmg)<-c("EVTYPE","DMG")
+cropdmg<-cropdmg[order(-cropdmg$DMG),]
+cropdmg<-cropdmg[1:5,]
+cropdmg$DMG<-cropdmg$DMG/10^9
+cropdmg$DMG<-round(cropdmg$DMG,digits = 1)
+```
+
+# II. Results
+
+## A. Human cost
+
+We will plot the cost of storm events in terms of injuries and deaths using the ggplot2 package and aggregate the two charts (p1 and p2 below) in one chart using the ggpubr package:
+
+```{r,echo=TRUE,fig.height=8,fig.width=12}
+library(ggplot2)
+library(ggpubr)
+
+p1<-ggplot(data=top5injuries,aes(x=reorder(event,-injured),y=injured))+geom_bar(stat="identity",colour="blue",fill="blue")+xlab("")+ylab("number injured")+geom_text(aes(label=injured),position=position_dodge(width=0.9),vjust=-0.25)
+
+p2<-ggplot(data=top5fat,aes(x=reorder(event,-deaths),y=deaths))+geom_bar(stat="identity",colour="red",fill="red")+ylab("number of deaths")+xlab("")+geom_text(aes(label=deaths),position=position_dodge(width=0.9),vjust=-0.25)
+
+ggarrange(p1, p2, ncol = 2, nrow = 1)
+```
+
+## B. Economic cost
+
+We proceed exactly as above:
+
+```{r, echo=TRUE,fig.height=8,fig.width=12}
+library(ggplot2)
+library(ggpubr)
+
+q1<-ggplot(data=propdmg,aes(x=reorder(EVTYPE,-DMG),y=DMG))+geom_bar(stat="identity",colour="red",fill="red")+ylab("property damage $ bn")+xlab("")+geom_text(aes(label=DMG),position=position_dodge(width=0.9),vjust=-0.25)
+
+q2<-ggplot(data=cropdmg,aes(x=reorder(EVTYPE,-DMG),y=DMG))+geom_bar(stat="identity",colour="blue",fill="blue")+ylab("crops damage $ bn")+xlab("")+geom_text(aes(label=DMG),position=position_dodge(width=0.9),vjust=-0.25)
+
+ggarrange(q1, q2, ncol = 2, nrow = 1)
+```
