@@ -1,0 +1,371 @@
+---
+title: "ESG: Moody's IPS and CIS scores"
+subtitle: "Banks (excl. MLIs)"
+author: Santander FI Debt Advisory
+header-includes:
+- \titlegraphic{\centering \includegraphics[width=2cm]{C:/Users/e1214219/Desktop/Data analysis/Data sets/Santander.png}}
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+sansfont: Times New Roman
+output:
+  beamer_presentation: default
+  ioslides_presentation: default
+  slidy_presentation: default
+  powerpoint_presentation: default
+---
+
+```{r echo=FALSE, warning =FALSE}
+setwd("C:/Users/e1214219/Desktop/Data analysis/Files for analysis/Moodys ESG")
+
+library(ggplot2)
+library(readxl)
+library(ggpubr)
+library(formattable)
+
+#read entire data 
+df<-read_xlsx("Moodys ESG 17022023.xlsx")
+#OPTIONAL: remove non relevant columns: df<-df[c(-5,-7,-9)]
+#remove program rating symbol. NB: in two steps, first the brackets, then the "P" prefix
+df$`Long-Term Rating *`<-gsub("[()]","",as.character(df$`Long-Term Rating *`))
+df$`Long-Term Rating *`<-gsub("P","",as.character(df$`Long-Term Rating *`))
+#ratings as factors
+df$`Long-Term Rating *`<-as.factor(df$`Long-Term Rating *`)
+#ratings as numbers (new column)
+df$`Long-Term Rating Number`<-df$`Long-Term Rating *`
+df$`Long-Term Rating Number`<-as.character(df$`Long-Term Rating Number`)
+df$`Long-Term Rating Number`<-replace(df$`Long-Term Rating Number`,which(df$`Long-Term Rating Number`=="Aaa"),"21")
+df$`Long-Term Rating Number`<-replace(df$`Long-Term Rating Number`,which(df$`Long-Term Rating Number`=="Aa1"),"20")
+df$`Long-Term Rating Number`<-replace(df$`Long-Term Rating Number`,which(df$`Long-Term Rating Number`=="Aa2"),"19")
+df$`Long-Term Rating Number`<-replace(df$`Long-Term Rating Number`,which(df$`Long-Term Rating Number`=="Aa3"),"18")
+df$`Long-Term Rating Number`<-replace(df$`Long-Term Rating Number`,which(df$`Long-Term Rating Number`=="A1"),"17")
+df$`Long-Term Rating Number`<-replace(df$`Long-Term Rating Number`,which(df$`Long-Term Rating Number`=="A2"),"16")
+df$`Long-Term Rating Number`<-replace(df$`Long-Term Rating Number`,which(df$`Long-Term Rating Number`=="A3"),"15")
+df$`Long-Term Rating Number`<-replace(df$`Long-Term Rating Number`,which(df$`Long-Term Rating Number`=="Baa1"),"14")
+df$`Long-Term Rating Number`<-replace(df$`Long-Term Rating Number`,which(df$`Long-Term Rating Number`=="Baa2"),"13")
+df$`Long-Term Rating Number`<-replace(df$`Long-Term Rating Number`,which(df$`Long-Term Rating Number`=="Baa3"),"12")
+df$`Long-Term Rating Number`<-replace(df$`Long-Term Rating Number`,which(df$`Long-Term Rating Number`=="Ba1"),"11")
+df$`Long-Term Rating Number`<-replace(df$`Long-Term Rating Number`,which(df$`Long-Term Rating Number`=="Ba2"),"10")
+df$`Long-Term Rating Number`<-replace(df$`Long-Term Rating Number`,which(df$`Long-Term Rating Number`=="Ba3"),"9")
+df$`Long-Term Rating Number`<-replace(df$`Long-Term Rating Number`,which(df$`Long-Term Rating Number`=="B1"),"8")
+df$`Long-Term Rating Number`<-replace(df$`Long-Term Rating Number`,which(df$`Long-Term Rating Number`=="B2"),"7")
+df$`Long-Term Rating Number`<-replace(df$`Long-Term Rating Number`,which(df$`Long-Term Rating Number`=="B3"),"6")
+df$`Long-Term Rating Number`<-replace(df$`Long-Term Rating Number`,which(df$`Long-Term Rating Number`=="Caa1"),"5")
+df$`Long-Term Rating Number`<-replace(df$`Long-Term Rating Number`,which(df$`Long-Term Rating Number`=="Caa2"),"4")
+df$`Long-Term Rating Number`<-replace(df$`Long-Term Rating Number`,which(df$`Long-Term Rating Number`=="Caa3"),"3")
+df$`Long-Term Rating Number`<-replace(df$`Long-Term Rating Number`,which(df$`Long-Term Rating Number`=="Ca"),"2")
+df$`Long-Term Rating Number`<-replace(df$`Long-Term Rating Number`,which(df$`Long-Term Rating Number`=="C"),"1")
+df$`Long-Term Rating Number`<-as.numeric(df$`Long-Term Rating Number`)
+
+#Relevant sector
+Sector<-"Bank"
+#Banks subset
+df2<-df[which(df$Sector==Sector),]
+
+# European subset
+EU=c("Austria","Belgium","Denmark","Finland","France","Germany","Greece","Hungary","Ireland","Italy","Luxembourg","Netherlands","Norway","Poland","Portugal","Spain","Sweden","Switzerland","United Kingdom")
+df3<-df2[df2$Domicile%in%EU,]
+
+
+#Note: to generate pdf reports it is needed to have LaTex installed, for e.g. by running tinytex::install_tinytex() may need to be run
+```
+
+## The data
+* The following statistics are based on Moody's CIS and IPS scores published for **`r nrow(df2)` `r Sector`** (September 2022)
+ 
+```{r echo=FALSE, warning =FALSE}
+pemea<-percent((sum(df2$Region=="Europe, Middle East & Africa")/nrow(df2)),0)
+papac<-percent((sum(df2$Region=="Asia Pacific")/nrow(df2)),0)
+pam<-percent((sum(df2$Region=="Americas")/nrow(df2)),0)
+```
+* **`r pemea`** are entities based in **EMEA**, **`r papac`** in **APA**C and **`r pam`** in the **Americas**    
+* The distributions by country may not always be meaningful due to the low number of banks with assigned IPSs and CISs
+* This report was generated using R Markdown
+
+## Definitions 
+
+* **Credit Impact Score (CIS):**
+This score explains the impact of ESG considerations on the rating of an issuer or transaction. The CIS is based on Moody's qualitative assessment of the impact of ESG considerations in the context of the issuer’s other credit drivers that are material to a given rating. The CIS is an *output of the rating process*.
+
+* **Issuer Profile Score (IPS):**
+This score indicates Moody's opinion of the extent to which a given issuer or transaction is exposed to E, S and G risks (incorporating ESG-specific mitigants) or benefits from its exposure to E, S or G. The IPSs are *inputs to credit ratings*.
+
+## Scale 
+
+* **Scale:**
+1: Positive
+2: Neutral-to-Low
+3: Moderately Negative
+4: Highly Negative
+5: Very Highly Negative
+
+* For further information, please refer to *General Principles for Assessing Environmental, Social and Governance Risks Methodology*, Moody's, 14 December 2020  
+
+
+
+## ESG risks have limited impact on bank ratings, for now
+Notwithstanding **‘highly negative’** exposure to **Social** issues and **‘moderately negative’** exposure to **Environmental** issues
+
+```{r echo=FALSE}
+
+gridExtra::grid.arrange(
+#Distribution of CIS
+ggplot(na.omit(df2))+geom_bar(aes(x=`Credit Impact Score (CIS)`,y = ..prop..),color="blue",fill="white")+scale_y_continuous(labels = scales::percent)+ylab("")+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(),axis.line.x = element_line(colour="grey"),axis.ticks=element_blank(),axis.text.y=element_blank(),axis.title = element_text(face="bold"))+scale_x_discrete(limits=c("1","2","3","4","5"))+geom_text(aes(x=`Credit Impact Score (CIS)`,label = scales::percent(round((..prop..),2)), y= ..prop.. ), stat= "count", vjust = -.2)+xlab("CIS"),
+
+#Distribution of E-IPS
+ggplot(na.omit(df2))+geom_bar(aes(x=`Environmental Issuer Profile Score`,y = ..prop..),color="blue", fill="white")+scale_y_continuous(labels = scales::percent)+ylab("")+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line.x = element_line(colour="grey"),axis.ticks=element_blank(),axis.text.y=element_blank(),axis.title = element_text(face="bold"))+scale_x_discrete(limits=c("1","2","3","4","5"))+geom_text(aes(x=`Environmental Issuer Profile Score`,label = scales::percent(round((..prop..),2)), y= ..prop.. ), stat= "count", vjust = -.2)+xlab("E-IPS"),
+
+#Distribution of S-IPS
+ggplot(na.omit(df2))+geom_bar(aes(x=`Social Issuer Profile Score`,y = ..prop..),color="blue", fill="white")+scale_y_continuous(labels = scales::percent)+ylab("")+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line.x = element_line(colour="grey"),axis.ticks=element_blank(),axis.text.y=element_blank(),axis.title = element_text(face="bold"))+scale_x_discrete(limits=c("1","2","3","4","5"))+geom_text(aes(x=`Social Issuer Profile Score`,label = scales::percent(round((..prop..),2)), y= ..prop.. ), stat= "count", vjust = -.2)+xlab("S-IPS"),
+
+#Distribution of G-IPS
+ggplot(na.omit(df2))+geom_bar(aes(x=`Governance Issuer Profile Score`,y = ..prop..),color="blue", fill="white")+scale_y_continuous(labels = scales::percent)+ylab("")+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line.x = element_line(colour="grey"),axis.ticks=element_blank(),axis.text.y=element_blank(),axis.title = element_text(face="bold"))+scale_x_discrete(limits=c("1","2","3","4","5"))+geom_text(aes(x=`Governance Issuer Profile Score`,label = scales::percent(round((..prop..),2)), y= ..prop.. ), stat= "count", vjust = -.2)+xlab("G-IPS")
+)
+
+```
+
+## Exposure to governance issues drives banks’ CIS
+Rather than social or environmental ones, for now
+
+```{r echo=FALSE,warning=FALSE,message=FALSE}
+
+gridExtra::grid.arrange(
+  
+ggplot(df2,aes(y=df2$`Credit Impact Score (CIS)`,x=df2$`Governance Issuer Profile Score`))+geom_point()+geom_smooth(method="lm",se=FALSE,formula=y~x,color="#EB0000",linetype=2,size=1)+xlab("G-IPS")+ylab("CIS")+scale_x_discrete(limits=c("1","2","3","4","5"))+scale_y_discrete(limits=c("1","2","3","4","5"))+stat_regline_equation(label.y=5.4,aes(label = ..rr.label..),color="#EB0000")+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.title = element_text(face="bold"),axis.line.x = element_line(colour="black"),axis.line.y = element_line(colour="black"),panel.background = element_rect(fill = "white"))+annotate(geom="text", x=3, y=0.8, label="All banks with a G-IPS of '1' have a CIS of '1'",color="blue",size=3),
+
+ggplot(df2,aes(y=df2$`Credit Impact Score (CIS)`,x=df2$`Environmental Issuer Profile Score`))+geom_point()+geom_smooth(method="lm",se=FALSE,formula=y~x,color="#EB0000",linetype=2,size=1)+xlab("E-IPS")+ylab("CIS")+scale_x_discrete(limits=c("1","2","3","4","5"))+scale_y_discrete(limits=c("1","2","3","4","5"))+stat_regline_equation(label.y=5,label.x=3,aes(label = ..rr.label..),color="#EB0000")+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.title = element_text(face="bold"),axis.line.x = element_line(colour="black"),panel.background = element_rect(fill = "white"),axis.line.y = element_line(colour="black")),
+
+ggplot(df2,aes(y=df2$`Credit Impact Score (CIS)`,x=df2$`Social Issuer Profile Score`))+geom_point()+geom_smooth(method="lm",se=FALSE,formula=y~x,color="#EB0000",linetype=2,size=1)+xlab("S-IPS")+ylab("CIS")+scale_x_discrete(limits=c("1","2","3","4","5"))+scale_y_discrete(limits=c("1","2","3","4","5"))+stat_regline_equation(label.y=5.4,aes(label = ..rr.label..),digits=1,color="#EB0000")+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.title = element_text(face="bold"),axis.line.x = element_line(colour="black"),axis.line.y = element_line(colour="black"),panel.background = element_rect(fill = "white")),
+
+ggplot(df2,aes(x=df2$`Credit Impact Score (CIS)`,y=df2$`Long-Term Rating Number`))+geom_point()+geom_smooth(method="lm",se=FALSE,formula=y~x,color="#EB0000",linetype=2,size=1)+xlab("CIS")+ylab("Long-term rating")+scale_x_discrete(limits=c("1","2","3","4","5"))+scale_y_discrete(limits=c("","Ca","C","Caa3","Caa2","Caa1","B3","B2","B1","Ba3","Ba2","Ba1","Baa3","Baa2","Baa1","A3","A2","A1","Aa3","Aa2","Aa1","Aaa"))+stat_regline_equation(label.y=5,label.x=3,aes(label = ..rr.label..),digits=1,color="#EB0000")+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.title = element_text(face="bold"),axis.line.x = element_line(colour="black"),axis.line.y = element_line(colour="black"),panel.background = element_rect(fill = "white"))
+)
+```
+
+## Distribution of CIS by region
+
+```{r echo=FALSE}
+
+#Proportion of banks with CIS greater than 3 in EMEA
+pemeacis3<-percent(sum(df2$`Credit Impact Score (CIS)`>="3"& df2$Region=="Europe, Middle East & Africa")/sum(df2$Region=="Europe, Middle East & Africa"),0)
+#Proportion of banks with CIS greater than 3 in Americas
+pamcis3<-percent(sum(df2$`Credit Impact Score (CIS)`>="3"& df2$Region=="Americas")/sum(df2$Region=="Americas"),0)
+#Proportion of banks with CIS greater than 3 in Asia Pacific
+papaccis3<-percent(sum(df2$`Credit Impact Score (CIS)`>="3"& df2$Region=="Asia Pacific")/sum(df2$Region=="Asia Pacific"),0)
+#Note:'formattable' package needed for percentages
+```
+
+Share of at least 'moderately negative' CIS  is higher in **APAC (`r papaccis3`)** than in **EMEA (`r pemeacis3`)** and **Americas (`r pamcis3`)**
+
+```{r echo=FALSE}
+
+#Distribution of CIS by geography
+ggplot(df2)+geom_bar(aes(x=`Credit Impact Score (CIS)`,y = ..prop..),color="blue",fill="white")+scale_y_continuous(labels = scales::percent)+ylab("")+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_blank(),axis.ticks=element_blank(),axis.text.y=element_blank(),axis.title = element_text(face="bold"),axis.line.x = element_line(colour="grey"))+scale_x_discrete(limits=c("1","2","3","4","5"))+geom_text(aes(x=`Credit Impact Score (CIS)`,label = scales::percent(round((..prop..),2)), y= ..prop.. ), stat= "count", vjust = -.2)+xlab("CIS")+facet_wrap(~Region)
+```
+
+
+## Distribution of CIS in EU banking systems
+**Switzerland, the UK and Sweden** are where ESG issues are most discriminatory for credit ratings
+
+```{r echo=FALSE}
+
+#Distribution of CIS in EMEA
+ggplot(df3)+geom_bar(aes(x=`Credit Impact Score (CIS)`,y = ..prop..),color="blue",fill="white")+scale_y_continuous(labels = scales::percent)+ylab("")+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_blank(),axis.ticks=element_blank(),axis.text.y=element_blank(),axis.title = element_text(face="bold"),axis.line.x = element_line(colour="grey"))+scale_x_discrete(limits=c("1","2","3","4","5"))+geom_text(aes(x=`Credit Impact Score (CIS)`,label = scales::percent(round((..prop..),2)), y= ..prop.. ), stat= "count", vjust = +1.25,size=3)+xlab("CIS")+facet_wrap(~Domicile)
+```
+
+## Distribution of E-IPS by region
+
+```{r echo=FALSE}
+
+#Proportion of banks with E-IPS greater than 3 in EMEA
+pemeaeips3<-percent(sum(df2$`Environmental Issuer Profile Score`>="3"& df2$Region=="Europe, Middle East & Africa")/sum(df2$Region=="Europe, Middle East & Africa"),0)
+#Proportion of banks with E-IPS greater than 3 in Americas
+pameips3<-percent(sum(df2$`Environmental Issuer Profile Score`>="3"& df2$Region=="Americas")/sum(df2$Region=="Americas"),0)
+#Proportion of banks with E-IPS greater than 3 in Asia Pacific
+papaceips3<-percent(sum(df2$`Environmental Issuer Profile Score`>="3"& df2$Region=="Asia Pacific")/sum(df2$Region=="Asia Pacific"),0)
+#Note:'formattable' package needed for percentages
+```
+
+Share of at least 'moderately negative' E-IPS  is slightly higher in **EMEA (`r pemeaeips3`)** and **APAC (`r papaceips3`)** than in the **Americas (`r pameips3`)**
+
+```{r echo=FALSE}
+
+#Distribution of E-IPS by geography
+ggplot(df2)+geom_bar(aes(x=`Environmental Issuer Profile Score`,y = ..prop..),color="blue",fill="white")+scale_y_continuous(labels = scales::percent)+ylab("")+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(),axis.ticks=element_blank(),axis.text.y=element_blank(),axis.title = element_text(face="bold"),axis.line.x = element_line(colour="grey"))+scale_x_discrete(limits=c("1","2","3","4","5"))+geom_text(aes(x=`Environmental Issuer Profile Score`,label = scales::percent(round((..prop..),2)), y= ..prop.. ), stat= "count", vjust = -.2)+xlab("E-IPS")+facet_wrap(~Region)
+```
+
+## Distribution of E-IPS in EU banking systems
+**Little differentiation**, for now
+
+```{r echo=FALSE}
+
+#Distribution of E-IPS in EMEA
+ggplot(df3)+geom_bar(aes(x=`Environmental Issuer Profile Score`,y = ..prop..),color="blue",fill="white")+scale_y_continuous(labels = scales::percent)+ylab("")+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line.x = element_line(colour="grey"),axis.ticks=element_blank(),axis.text.y=element_blank(),axis.title = element_text(face="bold"))+scale_x_discrete(limits=c("1","2","3","4","5"))+geom_text(aes(x=`Environmental Issuer Profile Score`,label = scales::percent(round((..prop..),2)), y= ..prop.. ), stat= "count", vjust = +1.25,size=3)+xlab("E-IPS")+facet_wrap(~Domicile)
+```
+
+## Physical Climate Risks 
+**The Netherlands** is the only negative outlier
+
+```{r echo=FALSE}
+ggplot(df3)+geom_bar(aes(x=`Physical Climate Risks`,y = ..prop..),color="blue",fill="white")+scale_y_continuous(labels = scales::percent)+ylab("")+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line.x = element_line(colour="grey"),axis.ticks=element_blank(),axis.text.y=element_blank(),axis.title = element_text(face="bold"))+scale_x_discrete(limits=c("1","2","3","4","5"))+geom_text(aes(x=`Physical Climate Risks`,label = scales::percent(round((..prop..),2)), y= ..prop.. ), stat= "count", vjust = +1.25,size=3)+xlab("Physical Climate Risks")+facet_wrap(~Domicile)
+```
+
+## Carbon Transition 
+**Little differentiation**, for now
+
+```{r echo=FALSE}
+ggplot(df3)+geom_bar(aes(x=`Carbon Transition`,y = ..prop..),color="blue",fill="white")+scale_y_continuous(labels = scales::percent)+ylab("")+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line.x = element_line(colour="grey"),axis.ticks=element_blank(),axis.text.y=element_blank(),axis.title = element_text(face="bold"))+scale_x_discrete(limits=c("1","2","3","4","5"))+geom_text(aes(x=`Carbon Transition`,label = scales::percent(round((..prop..),2)), y= ..prop.. ), stat= "count", vjust = +1.25,size=3)+xlab("Carbon Transition")+facet_wrap(~Domicile)
+```
+
+## Water Management
+**Zero** differentiation
+
+```{r echo=FALSE}
+ggplot(df3)+geom_bar(aes(x=`Water Management`,y = ..prop..),color="blue",fill="white")+scale_y_continuous(labels = scales::percent)+ylab("")+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line.x = element_line(colour="grey"),axis.ticks=element_blank(),axis.text.y=element_blank(),axis.title = element_text(face="bold"))+scale_x_discrete(limits=c("1","2","3","4","5"))+geom_text(aes(x=`Water Management`,label = scales::percent(round((..prop..),2)), y= ..prop.. ), stat= "count", vjust = +1.25,size=3)+xlab("Water Management")+facet_wrap(~Domicile)
+```
+
+## Natural Capital
+**Zero** differentiation
+
+```{r echo=FALSE}
+ggplot(df3)+geom_bar(aes(x=`Natural Capital`,y = ..prop..),color="blue",fill="white")+scale_y_continuous(labels = scales::percent)+ylab("")+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line.x = element_line(colour="grey"),axis.ticks=element_blank(),axis.text.y=element_blank(),axis.title = element_text(face="bold"))+scale_x_discrete(limits=c("1","2","3","4","5"))+geom_text(aes(x=`Natural Capital`,label = scales::percent(round((..prop..),2)), y= ..prop.. ), stat= "count", vjust = +1.25,size=3)+xlab("Natural Capital")+facet_wrap(~Domicile)
+```
+
+## Waste and Pollution 
+**Zero** differentiation
+
+```{r echo=FALSE}
+ggplot(df3)+geom_bar(aes(x=`Waste and Pollution`,y = ..prop..),color="blue",fill="white")+scale_y_continuous(labels = scales::percent)+ylab("")+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line.x = element_line(colour="grey"),axis.ticks=element_blank(),axis.text.y=element_blank(),axis.title = element_text(face="bold"))+scale_x_discrete(limits=c("1","2","3","4","5"))+geom_text(aes(x=`Waste and Pollution`,label = scales::percent(round((..prop..),2)), y= ..prop.. ), stat= "count", vjust = +1.25,size=3)+xlab("Waste and Pollution")+facet_wrap(~Domicile)
+```
+
+## Distribution of S-IPS by region
+
+```{r echo=FALSE}
+
+#Proportion of banks with S-IPS greater than 3 in EMEA
+pemeasips3<-percent(sum(df2$`Social Issuer Profile Score`>="3"& df2$Region=="Europe, Middle East & Africa")/sum(df2$Region=="Europe, Middle East & Africa"),0)
+#Proportion of banks with S-IPS greater than 3 in Americas
+pamsips3<-percent(sum(df2$`Social Issuer Profile Score`>="3"& df2$Region=="Americas")/sum(df2$Region=="Americas"),0)
+#Proportion of banks with S-IPS greater than 3 in Asia Pacific
+papacsips3<-percent(sum(df2$`Social Issuer Profile Score`>="3"& df2$Region=="Asia Pacific")/sum(df2$Region=="Asia Pacific"),0)
+#Note:'formattable' package needed for percentages
+```
+
+Share of at least 'moderately negative' S-IPS  appears higher in **EMEA (`r pemeasips3`)** and **APAC (`r papacsips3`)** than in the **Americas (`r pamsips3`)**
+
+```{r echo=FALSE}
+
+#Distribution of S-IPS by geography
+ggplot(df2)+geom_bar(aes(x=`Social Issuer Profile Score`,y = ..prop..),color="blue",fill="white")+scale_y_continuous(labels = scales::percent)+ylab("")+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(),axis.ticks=element_blank(),axis.text.y=element_blank(),axis.title = element_text(face="bold"),axis.line.x = element_line(colour="grey"))+scale_x_discrete(limits=c("1","2","3","4","5"))+geom_text(aes(x=`Social Issuer Profile Score`,label = scales::percent(round((..prop..),2)), y= ..prop.. ), stat= "count", vjust = -.2)+xlab("S-IPS")+facet_wrap(~Region)
+```
+
+## Distribution of S-IPS in European banking systems
+**Nordic banks and Swiss private banks** appear relatively less exposed to social risks
+
+```{r echo=FALSE}
+
+#Distribution of S-IPS in EMEA
+ggplot(df3)+geom_bar(aes(x=`Social Issuer Profile Score`,y = ..prop..),color="blue",fill="white")+scale_y_continuous(labels = scales::percent)+ylab("")+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(),axis.ticks=element_blank(),axis.text.y=element_blank(),axis.title = element_text(face="bold"),axis.line.x = element_line(colour="grey"))+scale_x_discrete(limits=c("1","2","3","4","5"))+geom_text(aes(x=`Social Issuer Profile Score`,label = scales::percent(round((..prop..),2)), y= ..prop.. ), stat= "count", vjust = +1.25,size=3)+xlab("S-IPS")+facet_wrap(~Domicile)
+```
+
+## Customer Relations
+**Nordic banks and Swiss private banks** appear relatively less exposed
+
+```{r echo=FALSE}
+ggplot(df3)+geom_bar(aes(x=`Customer Relations`,y = ..prop..),color="blue",fill="white")+scale_y_continuous(labels = scales::percent)+ylab("")+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line.x = element_line(colour="grey"),axis.ticks=element_blank(),axis.text.y=element_blank(),axis.title = element_text(face="bold"))+scale_x_discrete(limits=c("1","2","3","4","5"))+geom_text(aes(x=`Customer Relations`,label = scales::percent(round((..prop..),2)), y= ..prop.. ), stat= "count", vjust = +1.25,size=3)+xlab("Customer Relations")+facet_wrap(~Domicile)
+```
+
+## Human Capital
+**Close to zero** differentiation
+
+```{r echo=FALSE}
+ggplot(df3)+geom_bar(aes(x=`Human Capital`,y = ..prop..),color="blue",fill="white")+scale_y_continuous(labels = scales::percent)+ylab("")+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line.x = element_line(colour="grey"),axis.ticks=element_blank(),axis.text.y=element_blank(),axis.title = element_text(face="bold"))+scale_x_discrete(limits=c("1","2","3","4","5"))+geom_text(aes(x=`Human Capital`,label = scales::percent(round((..prop..),2)), y= ..prop.. ), stat= "count", vjust = +1.25,size=3)+xlab("Human Capital")+facet_wrap(~Domicile)
+```
+
+## Demographic and Societal Trends
+**Switzerland** appears as the positive outlier
+
+```{r echo=FALSE}
+ggplot(df3)+geom_bar(aes(x=`Demographic and Societal Trends`,y = ..prop..),color="blue",fill="white")+scale_y_continuous(labels = scales::percent)+ylab("")+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line.x = element_line(colour="grey"),axis.ticks=element_blank(),axis.text.y=element_blank(),axis.title = element_text(face="bold"))+scale_x_discrete(limits=c("1","2","3","4","5"))+geom_text(aes(x=`Demographic and Societal Trends`,label = scales::percent(round((..prop..),2)), y= ..prop.. ), stat= "count", vjust = +1.25,size=3)+xlab("Demographic and Societal Trends")+facet_wrap(~Domicile)
+```
+
+## Health and Safety 
+**Zero** differentiation
+
+```{r echo=FALSE}
+ggplot(df3)+geom_bar(aes(x=`Health and Safety`,y = ..prop..),color="blue",fill="white")+scale_y_continuous(labels = scales::percent)+ylab("")+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line.x = element_line(colour="grey"),axis.ticks=element_blank(),axis.text.y=element_blank(),axis.title = element_text(face="bold"))+scale_x_discrete(limits=c("1","2","3","4","5"))+geom_text(aes(x=`Health and Safety`,label = scales::percent(round((..prop..),2)), y= ..prop.. ), stat= "count", vjust = +1.25,size=3)+xlab("Health and Safety")+facet_wrap(~Domicile)
+```
+
+## Responsible Production 
+**Denmark, France, Sweden, Switzerland** are the negative outliers 
+
+```{r echo=FALSE}
+ggplot(df3)+geom_bar(aes(x=`Responsible Production`,y = ..prop..),color="blue",fill="white")+scale_y_continuous(labels = scales::percent)+ylab("")+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line.x = element_line(colour="grey"),axis.ticks=element_blank(),axis.text.y=element_blank(),axis.title = element_text(face="bold"))+scale_x_discrete(limits=c("1","2","3","4","5"))+geom_text(aes(x=`Responsible Production`,label = scales::percent(round((..prop..),1)), y= ..prop.. ), stat= "count", vjust = +1.25,size=3)+xlab("Responsible Production")+facet_wrap(~Domicile)
+```
+
+## Distribution of G-IPS by region
+
+```{r echo=FALSE}
+
+#Proportion of banks with G-IPS greater than 3 in EMEA
+pemeagips3<-percent(sum(df2$`Governance Issuer Profile Score`>="3"& df2$Region=="Europe, Middle East & Africa")/sum(df2$Region=="Europe, Middle East & Africa"),0)
+#Proportion of banks with G-IPS greater than 3 in Americas
+pamgips3<-percent(sum(df2$`Governance Issuer Profile Score`>="3"& df2$Region=="Americas")/sum(df2$Region=="Americas"),0)
+#Proportion of banks with S-IPS greater than 3 in Asia Pacific
+papacgips3<-percent(sum(df2$`Governance Issuer Profile Score`>="3"& df2$Region=="Asia Pacific")/sum(df2$Region=="Asia Pacific"),0)
+#Note:'formattable' package needed for percentages
+```
+
+Share of at least 'moderately negative' G-IPS  appears lower in the **Americas (`r pamgips3`)** than in **APAC (`r papacgips3`)** and **EMEA (`r pemeagips3`)** 
+
+```{r echo=FALSE}
+
+#Distribution of G-IPS by geography
+ggplot(df2)+geom_bar(aes(x=`Governance Issuer Profile Score`,y = ..prop..),color="blue",fill="white")+scale_y_continuous(labels = scales::percent)+ylab("")+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(),axis.ticks=element_blank(),axis.text.y=element_blank(),axis.title = element_text(face="bold"),axis.line.x = element_line(colour="grey"))+scale_x_discrete(limits=c("1","2","3","4","5"))+geom_text(aes(x=`Governance Issuer Profile Score`,label = scales::percent(round((..prop..),2)), y= ..prop.. ), stat= "count", vjust = -.2)+xlab("G-IPS")+facet_wrap(~Region)
+```
+
+## Distribution of G-IPS in EU banking systems
+**Switzerland** is a negative outlier
+
+```{r echo=FALSE}
+
+#Distribution of G-IPS in EMEA
+ggplot(df3)+geom_bar(aes(x=`Governance Issuer Profile Score`,y = ..prop..),color="blue",fill="white")+scale_y_continuous(labels = scales::percent)+ylab("")+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(),axis.ticks=element_blank(),axis.text.y=element_blank(),axis.title = element_text(face="bold"),axis.line.x = element_line(colour="grey"))+scale_x_discrete(limits=c("1","2","3","4","5"))+geom_text(aes(x=`Governance Issuer Profile Score`,label = scales::percent(round((..prop..),2)), y= ..prop.. ), stat= "count", vjust = +1.25,size=3)+xlab("G-IPS")+facet_wrap(~Domicile)
+```
+
+## Financial Strategy and Risk Management 
+**Switzerland** is a negative outlier
+
+```{r echo=FALSE}
+ggplot(df3)+geom_bar(aes(x=`Financial Strategy and Risk Management`,y = ..prop..),color="blue",fill="white")+scale_y_continuous(labels = scales::percent)+ylab("")+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line.x = element_line(colour="grey"),axis.ticks=element_blank(),axis.text.y=element_blank(),axis.title = element_text(face="bold"))+scale_x_discrete(limits=c("1","2","3","4","5"))+geom_text(aes(x=`Financial Strategy and Risk Management`,label = scales::percent(round((..prop..),2)), y= ..prop.. ), stat= "count", vjust = +1.25,size=3)+xlab("Financial Strategy and Risk Management")+facet_wrap(~Domicile)
+```
+
+## Management Credibility and Track Record
+**Switzerland are Sweden** are negative outliers
+
+```{r echo=FALSE}
+ggplot(df3)+geom_bar(aes(x=`Management Credibility and Track Record`,y = ..prop..),color="blue",fill="white")+scale_y_continuous(labels = scales::percent)+ylab("")+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line.x = element_line(colour="grey"),axis.ticks=element_blank(),axis.text.y=element_blank(),axis.title = element_text(face="bold"))+scale_x_discrete(limits=c("1","2","3","4","5"))+geom_text(aes(x=`Management Credibility and Track Record`,label = scales::percent(round((..prop..),2)), y= ..prop.. ), stat= "count", vjust = +1.25,size=3)+xlab("Management Credibility and Track Record")+facet_wrap(~Domicile)
+```
+
+## Board Structure, Policies and Procedures 
+**Luxembourg, Sweden, the Netherlands, Switzerland** and **Italy** are negative outliers
+
+```{r echo=FALSE}
+ggplot(df3)+geom_bar(aes(x=`Board Structure, Policies and Procedures`,y = ..prop..),color="blue",fill="white")+scale_y_continuous(labels = scales::percent)+ylab("")+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line.x = element_line(colour="grey"),axis.ticks=element_blank(),axis.text.y=element_blank(),axis.title = element_text(face="bold"))+scale_x_discrete(limits=c("1","2","3","4","5"))+geom_text(aes(x=`Board Structure, Policies and Procedures`,label = scales::percent(round((..prop..),2)), y= ..prop.. ), stat= "count", vjust = +1.25,size=3)+xlab("Board Structure, Policies and Procedures")+facet_wrap(~Domicile)
+```
+
+## Organizational Structure 
+**France** is a negative outlier
+
+```{r echo=FALSE}
+ggplot(df3)+geom_bar(aes(x=`Organizational Structure`,y = ..prop..),color="blue",fill="white")+scale_y_continuous(labels = scales::percent)+ylab("")+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line.x = element_line(colour="grey"),axis.ticks=element_blank(),axis.text.y=element_blank(),axis.title = element_text(face="bold"))+scale_x_discrete(limits=c("1","2","3","4","5"))+geom_text(aes(x=`Organizational Structure`,label = scales::percent(round((..prop..),1)), y= ..prop.. ), stat= "count", vjust = +1.25,size=3)+xlab("Organizational Structure")+facet_wrap(~Domicile)
+```
+
+## Compliance and Reporting 
+**Switzerland** and **Sweden** are negative outliers
+
+```{r echo=FALSE}
+ggplot(df3)+geom_bar(aes(x=`Compliance and Reporting`,y = ..prop..),color="blue",fill="white")+scale_y_continuous(labels = scales::percent)+ylab("")+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line.x = element_line(colour="grey"),axis.ticks=element_blank(),axis.text.y=element_blank(),axis.title = element_text(face="bold"))+scale_x_discrete(limits=c("1","2","3","4","5"))+geom_text(aes(x=`Compliance and Reporting`,label = scales::percent(round((..prop..),1)), y= ..prop.. ), stat= "count", vjust = +1.25,size=3)+xlab("Compliance and Reporting")+facet_wrap(~Domicile)
+```
+
+
+
+
+  
